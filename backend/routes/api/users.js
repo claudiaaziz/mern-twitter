@@ -1,4 +1,5 @@
 const express = require("express");
+const passport = require("passport");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
@@ -12,11 +13,11 @@ router.get("/", function (req, res, next) {
 });
 
 // POST /api/users/register
-router.post('/register', async (req, res, next) => {
+router.post("/register", async (req, res, next) => {
   // Check to make sure no one has already registered with the proposed email or
   // username.
   const user = await User.findOne({
-    $or: [{ email: req.body.email }, { username: req.body.username }]
+    $or: [{ email: req.body.email }, { username: req.body.username }],
   });
 
   if (user) {
@@ -37,7 +38,7 @@ router.post('/register', async (req, res, next) => {
   // Otherwise create a new user
   const newUser = new User({
     username: req.body.username,
-    email: req.body.email
+    email: req.body.email,
   });
 
   bcrypt.genSalt(10, (err, salt) => {
@@ -48,12 +49,25 @@ router.post('/register', async (req, res, next) => {
         newUser.hashedPassword = hashedPassword;
         const user = await newUser.save();
         return res.json({ user });
-      }
-      catch(err) {
+      } catch (err) {
         next(err);
       }
-    })
+    });
   });
+});
+
+// POST /api/users/login
+router.post('/login', async (req, res, next) => {
+  passport.authenticate('local', async function(err, user) {
+    if (err) return next(err);
+    if (!user) {
+      const err = new Error('Invalid credentials');
+      err.statusCode = 400;
+      err.errors = { email: "Invalid credentials" };
+      return next(err);
+    }
+    return res.json({ user });
+  })(req, res, next);
 });
 
 module.exports = router;
